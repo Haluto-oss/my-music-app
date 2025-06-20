@@ -3,10 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# CORS設定: フロントエンド(http://localhost:3000)からのアクセスを許可
+# CORS設定: フロントエンド(http://localhost:5173)からのアクセスを許可
 # 将来フロントエンドと通信するために、この設定を入れておきます
 origins = [
-    "http://localhost:3000",
+    "http://localhost:5173",
 ]
 app.add_middleware(
     CORSMiddleware,
