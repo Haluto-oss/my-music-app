@@ -42,6 +42,17 @@ def analyze_chord(name: str):
     try:
         # music21には、正規化された名前(canonical_name)を渡す
         c = harmony.ChordSymbol(canonical_name)
+
+        # --- ↓↓↓↓↓↓ ここから3行を修正・追加します ↓↓↓↓↓↓ ---
+        
+        # 1. music21から標準的な構成音リストを取得 (例: ['B-', 'D', 'F'])
+        note_names_from_music21 = [p.name for p in c.pitches]
+        
+        # 2. ユーザー表示用に '-' を 'b' に変換 (例: ['Bb', 'D', 'F'])
+        display_note_names = [note.replace('-', 'b') for note in note_names_from_music21]
+        
+        # 3. 変換後のリスト(display_note_names)を返す
+        return {"input_chord": decoded_name, "notes": display_note_names}
         
         note_names = [p.name for p in c.pitches]
         
