@@ -3,6 +3,9 @@ package io.github.haluto_oss.backend_java;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.core.ParameterizedTypeReference; // <--- 追加
+import org.springframework.http.HttpMethod; // <--- 追加
+import org.springframework.http.ResponseEntity; // <--- 追加
 
 import java.util.Map;
 
@@ -17,12 +20,16 @@ public class ChordService {
     private final String pythonApiBaseUrl = "http://localhost:8000";
 
     // コードを分析するメソッド
-    public Map<String, Object> analyzeChord(String chordName) {
-        // 呼び出すPython APIの完全なURLを組み立てる
+        public Map<String, Object> analyzeChord(String chordName) {
         String url = pythonApiBaseUrl + "/ai/analyze/chord/" + chordName;
-
-        // Python APIを呼び出し、結果をMapとして受け取る
-        // 2番目の引数 `Map.class` は、JSON応答をJavaのMapに自動変換するための指定
-        return restTemplate.getForObject(url, Map.class);
+        // getForObjectの代わりにexchangeメソッドを使い、期待する型を正確に伝える
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                null, // GETリクエストなのでリクエストボディは無し
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+        );
+        
+        return response.getBody();
     }
 }
