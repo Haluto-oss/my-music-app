@@ -2,6 +2,7 @@ package io.github.haluto_oss.backend_java;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 
@@ -21,7 +22,12 @@ public class ChordController {
         try {
             // ChordServiceに実際の処理を依頼する
             Map<String, Object> result = chordService.analyzeChord(chordName);
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                    .header(HttpHeaders.PRAGMA, "no-cache")
+                    .header(HttpHeaders.EXPIRES, "0")
+                    .body(result);
+        
         } catch (HttpClientErrorException e) {
             // Pythonサーバーからエラーが返ってきた場合、そのエラーをそのままフロントエンドに返す
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
