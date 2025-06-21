@@ -40,11 +40,10 @@ function App() {
         return;
     }
     try {
-        // 入力されたコードネームをURLで安全に使える形式に変換する
         const encodedChordName = encodeURIComponent(chordInput);
-
-        // 変換した文字列を使ってAPIを呼び出す
-        const response = await fetch(`http://localhost:8080/api/chords/${encodedChordName}`);
+        
+        // ↓↓↓↓↓↓ URLの形式を変更 ↓↓↓↓↓↓
+        const response = await fetch(`http://localhost:8080/api/chords?name=${encodedChordName}`);
         
         // ↑↑↑↑↑↑ ここまでが修正箇所 ↑↑↑↑↑↑
 

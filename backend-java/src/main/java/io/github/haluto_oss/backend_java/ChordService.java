@@ -6,7 +6,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder; // <--- このimport文を追加
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Map;
 
@@ -18,14 +18,14 @@ public class ChordService {
 
     private final String pythonApiBaseUrl = "http://localhost:8000";
 
-    // ↓↓↓↓↓↓ このメソッドを丸ごと書き換えます ↓↓↓↓↓↓
     public Map<String, Object> analyzeChord(String chordName) {
         // UriComponentsBuilderを使って、URLエンコーディングの問題を安全に解決する
         String url = UriComponentsBuilder.fromHttpUrl(pythonApiBaseUrl)
-                .path("/ai/analyze/chord/{chordName}")
-                .buildAndExpand(chordName)
-                .toUriString();
+                .path("/ai/analyze/chord")
+                .queryParam("name", chordName) // <-- pathの代わりにqueryParamを使う
+                .toUriString(); // <-- 文字列に戻してもクエリパラメータなら安全
 
+        // getForObjectの代わりにexchangeメソッドを使い、期待する型を正確に伝える
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 url,
                 HttpMethod.GET,

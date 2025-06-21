@@ -1,36 +1,35 @@
 package io.github.haluto_oss.backend_java;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/chords") // このコントローラーは /api/chords に関連するリクエストを処理する
+@RequestMapping("/api/chords")
 public class ChordController {
 
-    // ChordServiceを自動的に注入してもらう
     @Autowired
     private ChordService chordService;
 
-    @CrossOrigin(origins = "http://localhost:5173") // フロントエンドからのアクセスを許可
-    @GetMapping("/{chordName}") // 例: /api/chords/Cmaj7 にアクセスするとこれが呼ばれる
-    public ResponseEntity<?> getChordAnalysis(@PathVariable String chordName) {
-
-         // ↓デバッグを確認するためのコード
-        System.out.println("★ Java Controller received: " + chordName);
+    @CrossOrigin(origins = "http://localhost:5173")
+    @GetMapping
+    public ResponseEntity<?> getChordAnalysis(@RequestParam String name) {
+        System.out.println("★ Java Controller received with query: " + name);
         try {
             // ChordServiceに実際の処理を依頼する
-            Map<String, Object> result = chordService.analyzeChord(chordName);
+            Map<String, Object> result = chordService.analyzeChord(name);
+
+            // 成功した場合、キャッシュ無効化ヘッダーを付けて結果を返す
             return ResponseEntity.ok()
                     .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
                     .header(HttpHeaders.PRAGMA, "no-cache")
                     .header(HttpHeaders.EXPIRES, "0")
                     .body(result);
-        
+
         } catch (HttpClientErrorException e) {
             // Pythonサーバーからエラーが返ってきた場合、そのエラーをそのままフロントエンドに返す
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
