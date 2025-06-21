@@ -19,6 +19,9 @@ public class ChordController {
     @CrossOrigin(origins = "http://localhost:5173") // フロントエンドからのアクセスを許可
     @GetMapping("/{chordName}") // 例: /api/chords/Cmaj7 にアクセスするとこれが呼ばれる
     public ResponseEntity<?> getChordAnalysis(@PathVariable String chordName) {
+
+         // ↓デバッグを確認するためのコード
+        System.out.println("★ Java Controller received: " + chordName);
         try {
             // ChordServiceに実際の処理を依頼する
             Map<String, Object> result = chordService.analyzeChord(chordName);

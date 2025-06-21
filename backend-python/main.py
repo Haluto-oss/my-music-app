@@ -26,6 +26,10 @@ def ping():
 
 @app.get("/ai/analyze/chord/{chordName}")
 def analyze_chord(chordName: str):
+
+    # ↓デバッグを確認するためのコード
+    print(f"★ Python API received: '{chordName}'")
+
     """
     コードネームを受け取り、music21を使って構成音を解析して返すエンドポイント
     """
