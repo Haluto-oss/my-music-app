@@ -71,12 +71,15 @@ def analyze_scale(name: str):
         else:
             raise HTTPException(status_code=400, detail=f"サポートされていないスケールタイプです: '{scale_type}'")
         
-        scale_pitches_obj = s.pitches
+        # music21のPitchオブジェクトとしてスケール構成音のリストを取得
+        # s.pitches[:-1] とすることで、最後のオクターブ上の音を除外する
+        scale_pitches_obj = s.pitches[:-1]
+        
+        # ユーザー表示用の構成音名リストを作成
         scale_pitches_for_display = [p.name.replace('-', 'b') for p in scale_pitches_obj]
         
-        # --- ↓↓↓↓↓↓ この部分を、完全に手動のロジックに書き換えました ↓↓↓↓↓↓ ---
+        # ダイアトニックコードを手動で組み立てる
         diatonic_chords = []
-        # ローマ数字の基本形
         roman_numerals_upper = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
 
         for i in range(7):
@@ -86,23 +89,30 @@ def analyze_scale(name: str):
             
             chord_obj = chord.Chord([root, third, fifth])
             
-            # コードのクオリティ（major, minor, diminishedなど）を判定
             quality = chord_obj.quality
-            
-            # クオリティに応じてディグリーネームを組み立てる
             base_roman = roman_numerals_upper[i]
+            
             if quality == 'minor':
                 roman_figure = base_roman.lower()
             elif quality == 'diminished':
                 roman_figure = base_roman.lower() + '°'
-            else: # major or other
+            else: # major
                 roman_figure = base_roman
 
-            # 表示用のコード名を整形
-            common_name = chord_obj.commonName.replace(' triad', '')
-            display_name = common_name.replace('-', 'b')
+            # --- ↓↓↓↓↓↓ 表示名を組み立てるロジックを修正 ↓↓↓↓↓↓ ---
+            # ルート音の名前を取得して表示用に整形
+            root_display_name = chord_obj.root().name.replace('-', 'b')
+            # コードのクオリティからサフィックス（m や dim）を決定
+            suffix = ''
+            if quality == 'minor':
+                suffix = 'm'
+            elif quality == 'diminished':
+                suffix = 'dim'
             
-            diatonic_chords.append(f"{display_name} ({roman_figure})")
+            # "C" や "Dm" といった最終的なコード名を組み立て
+            final_chord_name = f"{root_display_name}{suffix}"
+            
+            diatonic_chords.append(f"{final_chord_name} ({roman_figure})")
 
         return {
             "input_scale": name,
