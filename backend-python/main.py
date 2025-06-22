@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from music21 import harmony, scale
+from music21 import harmony, scale, chord, roman  # <--- roman を追加
 from urllib.parse import unquote
 
 app = FastAPI()
 
-# CORS設定
+# CORS設定 (変更なし)
 origins = [
     "http://localhost:5173",
 ]
@@ -24,9 +24,7 @@ def ping():
 
 @app.get("/ai/analyze/chord")
 def analyze_chord(name: str):
-    """
-    コードネームを受け取り、前処理をしてからmusic21で解析するエンドポイント
-    """
+    # (この関数は変更なし)
     print(f"★ Python received raw query: '{name}'")
     decoded_name = unquote(name)
     print(f"★ Python after unquote: '{decoded_name}'")
@@ -40,8 +38,6 @@ def analyze_chord(name: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"'{decoded_name}' は無効な、または解釈できないコードネームです。")
 
-
-# main.py の analyze_scale 関数をこれに置き換えてください
 
 @app.get("/ai/analyze/scale")
 def analyze_scale(name: str):
@@ -73,27 +69,33 @@ def analyze_scale(name: str):
         else:
             raise HTTPException(status_code=400, detail=f"サポートされていないスケールタイプです: '{scale_type}'")
         
-        scale_pitches = [p.name.replace('-', 'b') for p in s.getPitches()]
+        scale_pitches_obj = s.pitches
+        scale_pitches_for_display = [p.name.replace('-', 'b') for p in scale_pitches_obj]
         
         diatonic_chords = []
-        for degree in range(1, 8):
-            chord_obj = s.getChord(degree)
-            roman_numeral = chord_obj.romanNumeral.figure
-            common_name = chord_obj.commonName.replace(' minor triad', 'm').replace(' major triad', '').replace(' diminished triad', 'dim')
-            diatonic_chords.append(f"{common_name} ({roman_numeral})")
+        for i in range(7):
+            root = scale_pitches_obj[i]
+            third = scale_pitches_obj[(i + 2) % 7]
+            fifth = scale_pitches_obj[(i + 4) % 7]
+            
+            chord_obj = chord.Chord([root, third, fifth])
+            
+            # ↓↓↓↓↓↓ ここを修正 ↓↓↓↓↓↓
+            # harmony.roman ではなく、インポートした roman を直接使う
+            roman_numeral = roman.RomanNumeral(i + 1, s.getTonic()).figure
+            common_name = chord_obj.commonName.replace(' triad', '')
+            display_name = common_name.replace('-', 'b')
+            
+            diatonic_chords.append(f"{display_name} ({roman_numeral})")
 
         return {
             "input_scale": name,
-            "scale_pitches": scale_pitches,
+            "scale_pitches": scale_pitches_for_display,
             "diatonic_chords": diatonic_chords
         }
 
     except Exception as e:
-        # --- ↓↓↓ ここからがデバッグ用のコードです ↓↓↓ ---
-        print("="*30)
-        print("!!! AN EXCEPTION OCCURRED IN analyze_scale !!!")
+        # デバッグが終わったらこの3行は消してもOK
         import traceback
-        traceback.print_exc() # これがエラーの詳細を出力します
-        print("="*30)
-        # --- ↑↑↑ ここまでがデバッグ用のコードです ↑↑↑ ---
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"'{name}' は無効な、または解釈できないスケール名です。")
