@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from music21 import harmony
+from music21 import harmony, scale
 from urllib.parse import unquote  # <--- URLデコードのために追加
+
 
 app = FastAPI()
 
@@ -61,3 +62,34 @@ def analyze_chord(name: str):
     except Exception as e:
         # エラーメッセージにも、デコード後の分かりやすい名前を使う
         raise HTTPException(status_code=400, detail=f"'{decoded_name}' は無効な、または解釈できないコードネームです。")
+    
+@app.get("/ai/analyze/scale")
+def analyze_scale(name: str):
+    # スケール名を受け取り、その構成音とダイアトニックトライアド（3和音）を返す
+    
+    print(f"★ Python received scale name query: '{name}'")
+    try:
+        # ユーザーからの入力は、小文字に変換して処理する方が安定します
+        normalized_name = name.lower()
+
+        # music21でスケールオブジェクトを作成
+        s = scale.Scale(normalized_name)
+
+        # 1. スケール構成音のリストを作成
+        scale_pitches = [p.name.replace('-', 'b') for p in s.getPitches()]
+
+        # 2. ダイアトニックコード（3和音）のリストを作成
+        diatonic_chords = []
+        for chord_obj in s.getDiatonicTriads():
+            # 'C major triad' のような名前から、'C' や 'Dm' のような一般的な名前に変換
+            chord_name = chord_obj.commonName.replace(' minor triad', 'm').replace(' major triad', '').replace(' diminished triad', 'dim')
+            diatonic_chords.append(chord_name)
+
+        return {
+            "input_scale": name,
+            "scale_pitches": scale_pitches,
+            "diatonic_chords": diatonic_chords
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"'{name}' は無効な、または解釈できないスケール名です。")
