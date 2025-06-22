@@ -1,65 +1,61 @@
 import { useState } from 'react';
-import './App.css'; // スタイルはデフォルトのものを流用します
+import './App.css';
 
 function App() {
-  // サーバーからのメッセージを保存するための状態（変数）
-  const [javaMessage, setJavaMessage] = useState('');
-  const [pythonMessage, setPythonMessage] = useState('');
-
-  // Javaサーバーを呼び出す関数
-  const callJavaApi = async () => {
-    try {
-      const response = await fetch('http://localhost:8080/api/ping');
-      const data = await response.text();
-      setJavaMessage(data);
-    } catch (error) {
-      setJavaMessage('Javaサーバーの呼び出しに失敗しました。');
-      console.error(error);
-    }
-  };
-
-  // Pythonサーバーを呼び出す関数
-  const callPythonApi = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/ai/ping');
-      const data = await response.json();
-      setPythonMessage(data.message);
-    } catch (error) {
-      setPythonMessage('Pythonサーバーの呼び出しに失敗しました。');
-      console.error(error);
-    }
-  };
-
-  // --- 新しい機能：コード解析用 ---
-    const [chordInput, setChordInput] = useState('Cmaj7'); // 入力欄用の状態
-    const [analysisResult, setAnalysisResult] = useState(''); // 結果表示用の状態
+    // --- コード解析機能の状態 ---
+    const [chordInput, setChordInput] = useState('Cmaj7');
+    const [analysisResult, setAnalysisResult] = useState('');
 
     const handleAnalyzeChord = async () => {
-    if (!chordInput) {
-        setAnalysisResult('コードネームを入力してください。');
-        return;
-    }
-    try {
-        const encodedChordName = encodeURIComponent(chordInput);
-        
-        // ↓↓↓↓↓↓ URLの形式を変更 ↓↓↓↓↓↓
-        const response = await fetch(`http://localhost:8080/api/chords?name=${encodedChordName}`);
-        
-        // ↑↑↑↑↑↑ ここまでが修正箇所 ↑↑↑↑↑↑
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            setAnalysisResult(`エラー: ${data.detail || '不明なエラー'}`);
-        } else {
-            setAnalysisResult(`構成音: ${data.notes.join(', ')}`);
+        if (!chordInput) {
+            setAnalysisResult('コードネームを入力してください。');
+            return;
         }
-    } catch (error) {
-        setAnalysisResult('サーバーの呼び出しに失敗しました。Javaサーバーは起動していますか？');
-        console.error(error);
-    }
-};
+        try {
+            const encodedChordName = encodeURIComponent(chordInput);
+            const response = await fetch(`http://localhost:8080/api/chords?name=${encodedChordName}`);
+            const data = await response.json();
+            if (!response.ok) {
+                setAnalysisResult(`エラー: ${data.detail || '不明なエラー'}`);
+            } else {
+                setAnalysisResult(`構成音: ${data.notes.join(', ')}`);
+            }
+        } catch (error) {
+            setAnalysisResult('サーバーの呼び出しに失敗しました。');
+            console.error(error);
+        }
+    };
 
+    // --- ↓↓↓↓↓↓ ここからがスケール解析用の新しいコードです ↓↓↓↓↓↓ ---
+
+    const [scaleInput, setScaleInput] = useState('C major');
+    const [scalePitchesResult, setScalePitchesResult] = useState('');
+    const [diatonicChordsResult, setDiatonicChordsResult] = useState('');
+
+    const handleAnalyzeScale = async () => {
+        if (!scaleInput) {
+            setScalePitchesResult('スケール名を入力してください。');
+            setDiatonicChordsResult('');
+            return;
+        }
+        try {
+            const encodedScaleName = encodeURIComponent(scaleInput);
+            const response = await fetch(`http://localhost:8080/api/scales?name=${encodedScaleName}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                setScalePitchesResult(`エラー: ${data.detail || '不明なエラー'}`);
+                setDiatonicChordsResult('');
+            } else {
+                setScalePitchesResult(`スケール構成音: ${data.scale_pitches.join(', ')}`);
+                setDiatonicChordsResult(`ダイアトニックコード: ${data.diatonic_chords.join(' | ')}`);
+            }
+        } catch (error) {
+            setScalePitchesResult('サーバーの呼び出しに失敗しました。');
+            setDiatonicChordsResult('');
+            console.error(error);
+        }
+    };
 
     return (
         <>
@@ -77,9 +73,24 @@ function App() {
                 </button>
                 <p>解析結果: {analysisResult}</p>
             </div>
-            
-            {/* PingのテストUIはコメントアウトまたは削除してもOKです */}
-            {/* <hr /> ... */}
+
+            <hr />
+
+            {/* ↓↓↓↓↓↓ ここからがスケール解析用の新しいUIです ↓↓↓↓↓↓ */}
+            <div className="card">
+                <h2>スケール・ダイアトニックコード解析</h2>
+                <input
+                    type="text"
+                    value={scaleInput}
+                    onChange={(e) => setScaleInput(e.target.value)}
+                    placeholder="例: C major, A harmonic minor"
+                />
+                <button onClick={handleAnalyzeScale}>
+                    解析する
+                </button>
+                <p><b>{scalePitchesResult}</b></p>
+                <p>{diatonicChordsResult}</p>
+            </div>
         </>
     );
 }
