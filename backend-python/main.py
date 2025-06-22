@@ -39,6 +39,8 @@ def analyze_chord(name: str):
         raise HTTPException(status_code=400, detail=f"'{decoded_name}' は無効な、または解釈できないコードネームです。")
 
 
+# main.py の analyze_scale 関数をこれに置き換えてください
+
 @app.get("/ai/analyze/scale")
 def analyze_scale(name: str):
     """
@@ -72,7 +74,11 @@ def analyze_scale(name: str):
         scale_pitches_obj = s.pitches
         scale_pitches_for_display = [p.name.replace('-', 'b') for p in scale_pitches_obj]
         
+        # --- ↓↓↓↓↓↓ この部分を、完全に手動のロジックに書き換えました ↓↓↓↓↓↓ ---
         diatonic_chords = []
+        # ローマ数字の基本形
+        roman_numerals_upper = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
+
         for i in range(7):
             root = scale_pitches_obj[i]
             third = scale_pitches_obj[(i + 2) % 7]
@@ -80,13 +86,23 @@ def analyze_scale(name: str):
             
             chord_obj = chord.Chord([root, third, fifth])
             
-            # ↓↓↓↓↓↓ ここを修正 ↓↓↓↓↓↓
-            # harmony.roman ではなく、インポートした roman を直接使う
-            roman_numeral = roman.RomanNumeral(i + 1, s.getTonic()).figure
+            # コードのクオリティ（major, minor, diminishedなど）を判定
+            quality = chord_obj.quality
+            
+            # クオリティに応じてディグリーネームを組み立てる
+            base_roman = roman_numerals_upper[i]
+            if quality == 'minor':
+                roman_figure = base_roman.lower()
+            elif quality == 'diminished':
+                roman_figure = base_roman.lower() + '°'
+            else: # major or other
+                roman_figure = base_roman
+
+            # 表示用のコード名を整形
             common_name = chord_obj.commonName.replace(' triad', '')
             display_name = common_name.replace('-', 'b')
             
-            diatonic_chords.append(f"{display_name} ({roman_numeral})")
+            diatonic_chords.append(f"{display_name} ({roman_figure})")
 
         return {
             "input_scale": name,
@@ -95,7 +111,6 @@ def analyze_scale(name: str):
         }
 
     except Exception as e:
-        # デバッグが終わったらこの3行は消してもOK
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"'{name}' は無効な、または解釈できないスケール名です。")
