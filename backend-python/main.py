@@ -44,50 +44,53 @@ def analyze_chord(name: str):
 @app.get("/ai/analyze/scale")
 def analyze_scale(name: str):
     """
-    スケール名を受け取り、その構成音とダイアトニックトライアド（3和音）を返す
+    スケール名を受け取り、構成音、機能、ダイアトニックコード(3和音と4和音)を返す
     """
-    # ↓↓↓↓↓↓ このデコード処理を追加します ↓↓↓↓↓↓
-    decoded_name = unquote(name)
-    print(f"★ Python received scale name query: '{decoded_name}'")
-
+    print(f"★ Python received scale name query: '{name}'")
     try:
-        # デコード後の名前を処理に使う
-        normalized_name = decoded_name.lower()
+        # ... (スケールオブジェクトsを作成するまでのロジックは変更なし) ...
+        normalized_name = name.lower()
         parts = normalized_name.split()
-
         if len(parts) < 2:
             raise HTTPException(status_code=400, detail="スケールの種類を指定してください (例: 'C major', 'A minor')")
-
         tonic = parts[0]
         scale_type = " ".join(parts[1:])
-
         scale_map = {
-            "major": scale.MajorScale,
-            "minor": scale.MinorScale,
-            "natural minor": scale.MinorScale,
-            "harmonic minor": scale.HarmonicMinorScale,
+            "major": scale.MajorScale, "minor": scale.MinorScale,
+            "natural minor": scale.MinorScale, "harmonic minor": scale.HarmonicMinorScale,
             "melodic minor": scale.MelodicMinorScale
         }
-
         if scale_type in scale_map:
             scale_class = scale_map[scale_type]
             s = scale_class(tonic)
         else:
             raise HTTPException(status_code=400, detail=f"サポートされていないスケールタイプです: '{scale_type}'")
-        
+
+        # --- ↓↓↓ ここから下のロジックを、よりリッチな情報を生成するように変更 ↓↓↓ ---
+
         scale_pitches_obj = s.pitches[:-1]
         scale_pitches_for_display = [p.name.replace('-', 'b') for p in scale_pitches_obj]
         
-        diatonic_chords = []
+        # メジャースケールの機能（Function）を定義
+        # (マイナースケールなどは別途定義が必要だが、今回はメジャーのみ対応)
+        functions = ["Tonic", "Subdominant", "Tonic", "Subdominant", "Dominant", "Tonic", "Dominant"]
         roman_numerals_upper = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
+        
+        diatonic_harmony = []
         for i in range(7):
-            root = scale_pitches_obj[i]
-            third = scale_pitches_obj[(i + 2) % 7]
-            fifth = scale_pitches_obj[(i + 4) % 7]
+            # --- 3和音（トライアド）を生成 ---
+            c3_root = scale_pitches_obj[i]
+            c3_third = scale_pitches_obj[(i + 2) % 7]
+            c3_fifth = scale_pitches_obj[(i + 4) % 7]
+            triad = chord.Chord([c3_root, c3_third, c3_fifth])
             
-            chord_obj = chord.Chord([root, third, fifth])
+            # --- 4和音（セブンスコード）を生成 ---
+            c4_seventh = scale_pitches_obj[(i + 6) % 7]
+            seventh_chord = chord.Chord([c3_root, c3_third, c3_fifth, c4_seventh])
             
-            quality = chord_obj.quality
+            # --- 表示用のデータを整形 ---
+            # ディグリーネーム (I, ii, iii°, など)
+            quality = triad.quality
             base_roman = roman_numerals_upper[i]
             if quality == 'minor':
                 roman_figure = base_roman.lower()
@@ -95,23 +98,25 @@ def analyze_scale(name: str):
                 roman_figure = base_roman.lower() + '°'
             else: # major
                 roman_figure = base_roman
-            
-            root_display_name = chord_obj.root().name.replace('-', 'b')
-            suffix = ''
-            if quality == 'minor':
-                suffix = 'm'
-            elif quality == 'diminished':
-                suffix = 'dim'
-            
-            final_chord_name = f"{root_display_name}{suffix}"
-            
-            diatonic_chords.append(f"{final_chord_name} ({roman_figure})")
+
+            # コード名 (C, Dm, Cmaj7, Dm7, など)
+            triad_name = triad.root().name.replace('-', 'b') + triad.commonName.replace(' major triad', '').replace(' minor triad', 'm').replace(' diminished triad', 'dim')
+            seventh_chord_name = seventh_chord.pitchedCommonName.replace('-', 'b')
+
+            # 最終的なデータを組み立てる
+            diatonic_harmony.append({
+                "degree": roman_figure,
+                "function": functions[i],
+                "chords": [triad_name, seventh_chord_name]
+            })
 
         return {
-            "input_scale": decoded_name, # <-- 表示にもデコード後の名前を使う
+            "input_scale": name,
             "scale_pitches": scale_pitches_for_display,
-            "diatonic_chords": diatonic_chords
+            "diatonic_harmony": diatonic_harmony # <--- 返すデータのキーを変更
         }
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"'{decoded_name}' は無効な、または解釈できないスケール名です。") # <-- エラーメッセージも同様
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"'{name}' は無効な、または解釈できないスケール名です。")
