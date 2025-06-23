@@ -90,7 +90,14 @@ def analyze_scale(name: str):
             elif quality == 'diminished':
                 roman_figure = base_roman.lower() + '°'
             
-            triad_name = triad.root().name.replace('-', 'b') + triad.commonName.replace(' major triad', '').replace(' minor triad', 'm').replace(' diminished triad', 'dim')
+            root_display_name = triad.root().name.replace('-', 'b')
+            triad_suffix = ''
+            if quality == 'minor':
+                triad_suffix = 'm'
+            elif quality == 'diminished':
+                triad_suffix = 'dim'
+            
+            triad_name = f"{root_display_name}{triad_suffix}"
             seventh_chord_name = seventh_chord.pitchedCommonName.replace('-', 'b')
 
             diatonic_harmony_data.append({
