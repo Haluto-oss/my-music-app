@@ -17,26 +17,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/ai/ping")
-def ping():
-    return {"message": "Pong from Python! (Pythonからの返事です)"}
-
-
 @app.get("/ai/analyze/chord")
 def analyze_chord(name: str):
-    """
-    コードネームを受け取り、前処理をしてからmusic21で解析するエンドポイント
-    """
-    decoded_name = unquote(name)
-    canonical_name = decoded_name.replace('b', '-')
     try:
+        decoded_name = unquote(name)
+        canonical_name = decoded_name.replace('b', '-')
         c = harmony.ChordSymbol(canonical_name)
         note_names_from_music21 = [p.name for p in c.pitches]
         display_note_names = [note.replace('-', 'b') for note in note_names_from_music21]
         return {"input_chord": decoded_name, "notes": display_note_names}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"'{decoded_name}' は無効な、または解釈できないコードネームです。")
+        raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないコードネームです。")
 
+
+# main.py の analyze_scale 関数をこれに置き換えてください
 
 @app.get("/ai/analyze/scale")
 def analyze_scale(name: str):
@@ -60,11 +54,11 @@ def analyze_scale(name: str):
             "melodic minor": scale.MelodicMinorScale
         }
 
-        if scale_type in scale_map:
-            scale_class = scale_map[scale_type]
-            s = scale_class(tonic)
-        else:
+        if scale_type not in scale_map:
             raise HTTPException(status_code=400, detail=f"サポートされていないスケールタイプです: '{scale_type}'")
+        
+        scale_class = scale_map[scale_type]
+        s = scale_class(tonic)
         
         scale_pitches_obj = s.pitches[:-1]
         scale_pitches_for_display = [p.name.replace('-', 'b') for p in scale_pitches_obj]
@@ -82,23 +76,41 @@ def analyze_scale(name: str):
             triad = chord.Chord([root, third, fifth])
             seventh_chord = chord.Chord([root, third, fifth, seventh])
 
-            quality = triad.quality
+            # ディグリーネームの整形
+            triad_quality = triad.quality
             base_roman = roman_numerals_upper[i]
             roman_figure = base_roman
-            if quality == 'minor':
+            if triad_quality == 'minor':
                 roman_figure = base_roman.lower()
-            elif quality == 'diminished':
+            elif triad_quality == 'diminished':
                 roman_figure = base_roman.lower() + '°'
             
+            # 3和音のコード名の整形
             root_display_name = triad.root().name.replace('-', 'b')
             triad_suffix = ''
-            if quality == 'minor':
+            if triad_quality == 'minor':
                 triad_suffix = 'm'
-            elif quality == 'diminished':
+            elif triad_quality == 'diminished':
                 triad_suffix = 'dim'
-            
             triad_name = f"{root_display_name}{triad_suffix}"
-            seventh_chord_name = seventh_chord.pitchedCommonName.replace('-', 'b')
+
+            # --- ↓↓↓ セブンスコード名の生成ロジックを、最も確実な方法に修正しました ↓↓↓ ---
+            
+            # 4和音のクオリティを取得
+            seventh_quality = seventh_chord.quality
+            
+            # クオリティの文字列に応じてサフィックスを決定する
+            seventh_suffix = '7' # デフォルト (ドミナントセブンス)
+            if seventh_quality == 'major-seventh':
+                seventh_suffix = 'maj7'
+            elif seventh_quality == 'minor-seventh':
+                seventh_suffix = 'm7'
+            elif seventh_quality == 'diminished-seventh':
+                seventh_suffix = 'dim7'
+            elif seventh_quality == 'half-diminished':
+                seventh_suffix = 'm7(b5)'
+                
+            seventh_chord_name = f"{root_display_name}{seventh_suffix}"
 
             diatonic_harmony_data.append({
                 "degree": roman_figure,
@@ -113,4 +125,7 @@ def analyze_scale(name: str):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"'{name}' は無効な、または解釈できないスケール名です。")
+        # デバッグが終わったらこの3行は消してもOKです
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないスケール名です。")

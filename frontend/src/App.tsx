@@ -107,15 +107,18 @@ function App() {
           </button>
         </div>
 
-        {/* --- 結果表示 --- */}
+{/* --- 結果表示 --- */}
         {scaleError && <p style={{ color: 'red' }}>{scaleError}</p>}
         
-        {scalePitchesResult.length > 0 && (
+        {/* ↓↓↓↓↓↓ scalePitchesResult && を追加 ↓↓↓↓↓↓ */}
+        {(scalePitchesResult && scalePitchesResult.length > 0) && (
           <p><b>スケール構成音: {scalePitchesResult.join(', ')}</b></p>
         )}
         
-        {diatonicHarmonyResult.length > 0 && (
+        {/* ↓↓↓↓↓↓ diatonicHarmonyResult && を追加 ↓↓↓↓↓↓ */}
+        {(diatonicHarmonyResult && diatonicHarmonyResult.length > 0) && (
           <table>
+            {/* ... テーブルの中身は変更なし ... */}
             <thead>
               <tr>
                 <th>機能</th>
