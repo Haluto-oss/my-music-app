@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  # Javaバックエンドサービス
+  backend-java:
+    build: ./backend-java
+    ports:
+      - "8080:8080"
+
+  # Pythonバックエンドサービス
+  backend-python:
+    build: ./backend-python
+    ports:
+      - "8000:8000"
+
+  # フロントエンドサービス
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80" # PCの5173番ポートを、コンテナ内の80番ポート(Nginx)に接続
+    depends_on:
+      - backend-java
+      - backend-python
