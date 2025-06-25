@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Map;
 
@@ -16,7 +17,9 @@ public class ChordService {
     @Autowired
     private RestTemplate restTemplate;
 
-    private final String pythonApiBaseUrl = "http://localhost:8000";
+    // ↓↓↓↓↓↓ この行を、@Valueを使うように変更します ↓↓↓↓↓↓
+    @Value("${python.api.base.url:http://localhost:8000}")
+    private String pythonApiBaseUrl;
 
     public Map<String, Object> analyzeChord(String chordName) {
         // UriComponentsBuilderを使って、URLエンコーディングの問題を安全に解決する

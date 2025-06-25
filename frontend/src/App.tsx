@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import './App.css';
 
 // TypeScriptで、APIから返ってくるデータの「型」を定義

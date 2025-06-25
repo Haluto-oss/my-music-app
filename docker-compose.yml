@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Javaバックエンドサービス
+  backend-java:
+    build: ./backend-java
+    ports:
+      - "8080:8080"
+      # ↓↓↓↓↓↓ この environment セクションを追加します ↓↓↓↓↓↓
+    environment:
+      # Javaコードの@Value("${python.api.base.url}...")に対応する値を設定
+      - python.api.base.url=http://backend-python:8000
+
+  # Pythonバックエンドサービス
+  backend-python:
+    build: ./backend-python
+    ports:
+      - "8000:8000"
+
+  # フロントエンドサービス
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80" # PCの5173番ポートを、コンテナ内の80番ポート(Nginx)に接続
+    depends_on:
+      - backend-java
+      - backend-python
