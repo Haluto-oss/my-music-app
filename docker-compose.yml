@@ -6,6 +6,10 @@ services:
     build: ./backend-java
     ports:
       - "8080:8080"
+      # ↓↓↓↓↓↓ この environment セクションを追加します ↓↓↓↓↓↓
+    environment:
+      # Javaコードの@Value("${python.api.base.url}...")に対応する値を設定
+      - python.api.base.url=http://backend-python:8000
 
   # Pythonバックエンドサービス
   backend-python:
