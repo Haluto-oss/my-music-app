@@ -1,6 +1,4 @@
-// src/pages/ChordAnalyzerPage.tsx
-
-import { useState } from 'react';
+import { playSound } from '../services/soundService';import { useState } from 'react';
 
 export function ChordAnalyzerPage() {
   const [chordInput, setChordInput] = useState('Cmaj7');
@@ -28,7 +26,7 @@ export function ChordAnalyzerPage() {
 
   return (
     <div className="card">
-      <h2>コード構成音 解析</h2>
+      <h2>コード構成音 解析（ボタン表示テスト中）</h2>
       <input
         type="text"
         value={chordInput}
@@ -37,6 +35,13 @@ export function ChordAnalyzerPage() {
       />
       <button onClick={handleAnalyzeChord}>解析する</button>
       <p>解析結果: {analysisResult}</p>
+      {/* ↓↓↓↓↓↓ このテスト用ボタンを追加します ↓↓↓↓↓↓ */}
+      <hr style={{ margin: '20px 0' }} />
+      <button onClick={() => playSound('C4')}>
+        テストサウンドを鳴らす (C4)
+      </button>
+      {/* ↑↑↑↑↑↑ このテスト用ボタンを追加します ↑↑↑↑↑↑ */}
+
     </div>
   );
 }
