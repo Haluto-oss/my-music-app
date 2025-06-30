@@ -15,7 +15,7 @@ public class ChordController {
     @Autowired
     private ChordService chordService;
 
-    @CrossOrigin(origins = "http://localhost:5173")
+    @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
     @GetMapping
     public ResponseEntity<?> getChordAnalysis(@RequestParam String name) {
         System.out.println("★ Java Controller received with query: " + name);

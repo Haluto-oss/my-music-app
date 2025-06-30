@@ -15,7 +15,7 @@ public class ScaleController {
     @Autowired
     private ScaleService scaleService;
 
-    @CrossOrigin(origins = "http://localhost:5173")
+    @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
     @GetMapping
     public ResponseEntity<?> getScaleAnalysis(@RequestParam String name) {
         System.out.println("★ Java ScaleController received with query: " + name);
