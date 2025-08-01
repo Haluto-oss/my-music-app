@@ -1,8 +1,7 @@
-// App.tsx (新しい内容)
-
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ChordAnalyzerPage } from './pages/ChordAnalyzerPage';
 import { ScaleAnalyzerPage } from './pages/ScaleAnalyzerPage';
+import { FamousProgressionsPage } from './pages/FamousProgressionsPage';
 import { Navigation } from './components/Navigation';
 import './App.css';
 
@@ -19,10 +18,12 @@ function App() {
       {/* URLに応じて表示するページを切り替える設定 */}
       <Routes>
         {/* ルートURL ("/") にはコード分析ページを表示 */}
-        <Route path="/" element={<ChordAnalyzerPage />} />
+        <Route path="/cord-analyzer" element={<ChordAnalyzerPage />} />
         
         {/* "/scale-analyzer" というURLにはスケール分析ページを表示 */}
         <Route path="/scale-analyzer" element={<ScaleAnalyzerPage />} />
+
+        <Route path="/progressions" element={<FamousProgressionsPage />} />
       </Routes>
     </BrowserRouter>
   );
