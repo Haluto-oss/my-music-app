@@ -20,6 +20,8 @@ RUN npm run build
 # Nginxという軽量なWebサーバーの公式イメージをベースにする
 FROM nginx:stable-alpine
 
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 # 第1ステージ(builder)でビルドされた静的ファイル群を、Nginxの公開フォルダにコピー
 COPY --from=builder /app/dist /usr/share/nginx/html
 
