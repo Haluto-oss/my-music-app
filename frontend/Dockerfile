@@ -18,6 +18,7 @@ RUN npm run build
 
 # --- 第2ステージ: 実行環境 ---
 # Nginxという軽量なWebサーバーの公式イメージをベースにする
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 FROM nginx:stable-alpine
 
 # 第1ステージ(builder)でビルドされた静的ファイル群を、Nginxの公開フォルダにコピー
