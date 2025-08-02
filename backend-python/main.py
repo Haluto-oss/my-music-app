@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from music21 import harmony, scale, chord
 from urllib.parse import unquote
@@ -129,3 +129,37 @@ def analyze_scale(name: str):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないスケール名です。")
+    
+@app.post("/ai/transpose")
+def transpose_progression(
+    # POSTリクエストのボディからデータを受け取る
+    key_name: str = Body(...),
+    degrees: list[str] = Body(...)
+):
+    """
+    キーとディグリーネームのリストを受け取り、移調したコードネームのリストを返す
+    """
+    print(f"★ Python received transpose request: Key={key_name}, Degrees={degrees}")
+    try:
+        # music21でキーオブジェクトを作成
+        target_key = scale.Key(key_name)
+        
+        transposed_chords = []
+        for degree_str in degrees:
+            # "vi" や "V" のようなディグリーネームから、ローマ数字オブジェクトを作成
+            rn = roman.RomanNumeral(degree_str, target_key)
+            
+            # ローマ数字オブジェクトを、そのキーにおける具体的なコードに変換
+            chord_obj = harmony.ChordSymbol(rn.pitchNames[0], kind=rn.quality)
+
+            # 表示用に整形したコード名をリストに追加
+            # (例: 'B- major' -> 'Bb')
+            display_name = chord_obj.pitchedCommonName.replace('-', 'b')
+            transposed_chords.append(display_name)
+
+        return {"transposed_chords": transposed_chords}
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail="移調の処理中にエラーが発生しました。")
