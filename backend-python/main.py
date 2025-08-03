@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from music21 import harmony, scale, chord, roman
+from music21 import harmony, scale, chord, roman, key
 from urllib.parse import unquote
 
 app = FastAPI()
 
-# CORS設定 (変更なし)
+# CORS設定
 origins = [
     "http://localhost:5173",
 ]
@@ -17,12 +17,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/ai/ping")
+def ping():
+    return {"message": "Pong from Python! (Pythonからの返事です)"}
+
+
 @app.get("/ai/analyze/chord")
 def analyze_chord(name: str):
-    # (この関数は変更なし)
-    decoded_name = unquote(name)
-    canonical_name = decoded_name.replace('b', '-')
     try:
+        decoded_name = unquote(name)
+        canonical_name = decoded_name.replace('b', '-')
         c = harmony.ChordSymbol(canonical_name)
         note_names_from_music21 = [p.name for p in c.pitches]
         display_note_names = [note.replace('-', 'b') for note in note_names_from_music21]
@@ -30,9 +34,9 @@ def analyze_chord(name: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないコードネームです。")
 
+
 @app.get("/ai/analyze/scale")
 def analyze_scale(name: str):
-    # (この関数は変更なし)
     try:
         decoded_name = unquote(name)
         normalized_name = decoded_name.lower()
@@ -98,37 +102,33 @@ def analyze_scale(name: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないスケール名です。")
 
-# --- ↓↓↓↓↓↓ この関数の中身を、より堅牢なロジックに修正しました ↓↓↓↓↓↓ ---
-@app.post("/ai/transpose")
+# ↓↓↓↓↓↓ ここがGETリクエストの最終版です ↓↓↓↓↓↓
+@app.get("/ai/transpose")
 def transpose_progression(
-    key_name: str = Body(...),
-    degrees: list[str] = Body(...)
+    key_name: str,
+    degrees: list[str] = Query(...)
 ):
-    """
-    キーとディグリーネームのリストを受け取り、移調したコードネームのリストを返す
-    """
-    print(f"★ Python received transpose request: Key={key_name}, Degrees={degrees}")
     try:
-        # music21でキーオブジェクトを作成
-        # 'C' や 'c' -> C major, 'a' -> a minorのように賢く解釈してくれる
-        target_key = harmony.key.Key(key_name)
+        key_str_lower = key_name.lower()
+        if 'm' in key_str_lower and not key_str_lower.endswith('major'):
+             tonic = key_str_lower.replace('m', '')
+             target_key = key.Key(tonic, 'minor')
+        else:
+             tonic = key_str_lower.replace('major', '').strip()
+             target_key = key.Key(tonic, 'major')
         
         transposed_chords = []
         for degree_str in degrees:
-            # ディグリーネームからローマ数字オブジェクトを作成
             rn = roman.RomanNumeral(degree_str, target_key)
             
-            # ローマ数字オブジェクトから、ルート音とクオリティを取得してコード名を整形
             root_display_name = rn.root().name.replace('-', 'b')
             quality = rn.quality
-            
             suffix = ''
             if quality == 'minor':
                 suffix = 'm'
             elif quality == 'diminished':
                 suffix = 'dim'
             
-            # 7thなどの情報も考慮したい場合は、ここをさらに拡張できる
             final_chord_name = f"{root_display_name}{suffix}"
             transposed_chords.append(final_chord_name)
 
