@@ -102,7 +102,7 @@ def analyze_scale(name: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないスケール名です。")
 
-# ↓↓↓↓↓↓ ここがGETリクエストの最終版です ↓↓↓↓↓↓
+# ↓↓↓↓↓↓ こちらがGETリクエストを使用する、最終的に動作したバージョンです ↓↓↓↓↓↓
 @app.get("/ai/transpose")
 def transpose_progression(
     key_name: str,
@@ -135,6 +135,5 @@ def transpose_progression(
         return {"transposed_chords": transposed_chords}
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=400, detail="移調の処理中にエラーが発生しました。")
+    
