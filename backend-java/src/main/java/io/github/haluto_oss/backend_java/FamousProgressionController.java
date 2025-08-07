@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 // フロントに返すための、新しいデータ構造を定義
@@ -14,6 +15,9 @@ record FamousProgressionResponse(
     List<String> degrees,
     List<String> chords
 ) {}
+
+// フロントから移調リクエストを受け取るためのデータ構造を定義
+record TransposeRequest(String key_name, List<String> degrees) {}
 
 @RestController
 @RequestMapping("/api/progressions")
@@ -38,5 +42,13 @@ public class FamousProgressionController {
             // フロントエンドに返すための新しいオブジェクトを作成
             return new FamousProgressionResponse(prog.name(), prog.description(), prog.defaultKey(), prog.degrees(), transposedChords);
         }).collect(Collectors.toList());
+    }
+
+    // ↓↓↓↓↓↓ ここにアノテーションを追加しました ↓↓↓↓↓↓
+    @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
+    @PostMapping("/transpose")
+    public Map<String, List<String>> transposeProgression(@RequestBody TransposeRequest request) {
+        List<String> transposedChords = transpositionService.transpose(request.key_name(), request.degrees());
+        return Map.of("transposed_chords", transposedChords);
     }
 }
