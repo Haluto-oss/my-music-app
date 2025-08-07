@@ -22,13 +22,17 @@ export function FamousProgressionsPage() {
 
   // キーの選択肢
   const keys = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
+  const minorKeys = ["Am", "A#m", "Bm", "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m"];
+
 
   // ページ読み込み時に、有名コード進行の基本データを取得する
   useEffect(() => {
     const fetchInitialProgressions = async () => {
       try {
         const response = await fetch('http://localhost:8080/api/progressions');
-        if (!response.ok) throw new Error('データ取得失敗');
+        if (!response.ok) {
+          throw new Error('データの取得に失敗しました。');
+        }
         const data: ProgressionData[] = await response.json();
 
         // 取得したデータに、移調後のコードを保持する場所を追加してstateに保存
@@ -37,14 +41,19 @@ export function FamousProgressionsPage() {
         setError('サーバーからデータを取得できませんでした。');
       }
     };
+
     fetchInitialProgressions();
-  }, []);
+  }, []); // 第2引数の配列が空なので、初回レンダリング時にのみ実行される
 
   // キーが変更されたときに、Pythonに移調をリクエストする関数
   const handleKeyChange = async (progIndex: number, newKey: string) => {
     const targetProg = progressions[progIndex];
+
+    // もし移調先のキーが現在のキーと同じなら、何もしない
+    if (targetProg.key === newKey) return;
+
     try {
-      // Javaに新しく作るAPIを呼び出す（後で作成）
+      // Javaに新しく作るAPIを呼び出す
       const response = await fetch(`http://localhost:8080/api/progressions/transpose`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -65,6 +74,7 @@ export function FamousProgressionsPage() {
     } catch (err) {
       // エラー表示（今回はシンプルにconsole.log）
       console.error("移調に失敗しました:", err);
+      alert(`キー「${newKey}」への移調に失敗しました。`);
     }
   };
 
@@ -90,13 +100,18 @@ export function FamousProgressionsPage() {
           <div style={{ marginBottom: '1rem' }}>
             <strong>キー: </strong>
             <select value={prog.key} onChange={(e) => handleKeyChange(index, e.target.value)}>
-              {keys.map(k => <option key={k} value={k}>{k}</option>)}
+              <optgroup label="Major Keys">
+                {keys.map(k => <option key={k} value={k}>{k}</option>)}
+              </optgroup>
+              <optgroup label="Minor Keys">
+                {minorKeys.map(k => <option key={k} value={k}>{k}</option>)}
+              </optgroup>
             </select>
           </div>
 
           {/* コード/ディグリー進行の表示 */}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {(displayMode === 'chords' ? prog.displayChords : prog.degrees).map((item, i) => (
+            {(displayMode === 'chords' ? (prog.displayChords || []) : prog.degrees).map((item, i) => (
               <span key={i} className="note-tag">{item}</span>
             ))}
           </div>
