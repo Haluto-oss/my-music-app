@@ -102,8 +102,6 @@ def analyze_scale(name: str):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないスケール名です。")
 
-# main.py の transpose_progression 関数をこれに置き換えてください
-
 @app.get("/ai/transpose")
 def transpose_progression(
     key_name: str,
@@ -113,57 +111,27 @@ def transpose_progression(
     キーとディグリーネームのリストを受け取り、移調したコードネームのリストを返す
     """
     try:
-        # --- ↓↓↓ キーとディグリーからコードを特定するロジックを、根本から書き直しました ↓↓↓ ---
-
-        # 1. まず、指定されたキーのスケール（音階）を特定する
-        key_str_lower = key_name.lower()
-        scale_type = 'major'
-        tonic = key_str_lower
-        if 'm' in key_str_lower:
-            scale_type = 'minor'
-            tonic = key_str_lower.replace('m', '')
+        # --- ↓↓↓ このURLデコード処理を追加しました ↓↓↓ ---
+        decoded_key_name = unquote(key_name)
         
-        target_scale = scale.MinorScale(tonic) if scale_type == 'minor' else scale.MajorScale(tonic)
+        # --- ↓↓↓ キーの解釈を、より正確にするロジックに修正しました ↓↓↓ ---
+        key_str_lower = decoded_key_name.lower()
+        mode = 'major' # デフォルトはメジャー
+        tonic_str = key_str_lower.replace('major', '').strip()
+
+        if 'm' in key_str_lower and not key_str_lower.endswith('major'):
+            mode = 'minor'
+            tonic_str = key_str_lower.replace('m', '')
         
-        # 2. スケールの構成音（ピッチオブジェクト）を取得
-        scale_pitches = target_scale.getPitches()
-
-        # 3. ディグリーネームと、スケールの何番目の音かを対応付ける辞書
-        degree_map = {
-            'i': 1, 'I': 1,
-            'ii': 2, 'II': 2,
-            'iii': 3, 'III': 3,
-            'iv': 4, 'IV': 4,
-            'v': 5, 'V': 5,
-            'vi': 6, 'VI': 6,
-            'vii': 7, 'VII': 7
-        }
-
+        target_key = key.Key(tonic_str, mode)
+        
         transposed_chords = []
         for degree_str in degrees:
-            # "vi" や "iv" から "vi" や "iv" を取り出す
-            # "VII" から "VII" を取り出す
-            clean_degree = degree_str.replace('°', '').replace('dim', '')
+            rn = roman.RomanNumeral(degree_str, target_key)
             
-            if clean_degree not in degree_map:
-                # 不明なディグリーの場合はスキップ
-                transposed_chords.append('?')
-                continue
-
-            # 4. ディグリーに対応するルート音をスケールから取得
-            # (リストのインデックスは0から始まるので、-1する)
-            root_pitch = scale_pitches[degree_map[clean_degree] - 1]
-
-            # 5. コードのクオリティ（major/minor/diminished）をディグリーから判断
-            # (小文字のローマ数字はマイナーかディミニッシュ)
-            quality = 'major'
-            if degree_str.islower():
-                quality = 'minor'
-            if '°' in degree_str or 'dim' in degree_str:
-                quality = 'diminished'
+            root_display_name = rn.root().name.replace('-', 'b')
+            quality = rn.quality
             
-            # 6. ルート音とクオリティからコード名を組み立てる
-            root_display_name = root_pitch.name.replace('-', 'b')
             suffix = ''
             if quality == 'minor':
                 suffix = 'm'
@@ -178,4 +146,4 @@ def transpose_progression(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=400, detail="移調の処理中にエラーが発生しました。")
+        raise HTTPException(status_code=400, detail=f"移調の処理中にエラーが発生しました。")
