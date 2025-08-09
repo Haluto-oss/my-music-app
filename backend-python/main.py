@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from music21 import harmony, scale, chord, roman, key
+from music21 import harmony, scale, chord, roman, key, interval
 from urllib.parse import unquote
 
 app = FastAPI()
@@ -35,84 +35,108 @@ def analyze_chord(name: str):
         raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないコードネームです。")
 
 
-# main.py の analyze_scale 関数をこれに置き換えてください
-
 @app.get("/ai/analyze/scale")
 def analyze_scale(name: str):
     try:
         decoded_name = unquote(name)
         normalized_name = decoded_name.lower()
         parts = normalized_name.split()
-        if len(parts) < 2:
-            raise HTTPException(status_code=400, detail="スケールの種類を指定してください (例: 'C major', 'A minor')")
-        tonic = parts[0]
-        scale_type = " ".join(parts[1:])
+        if len(parts) == 0:
+             raise HTTPException(status_code=400, detail="スケール名を入力してください。")
+        
+        # ユーザー入力からtonicとscale_typeを抽出
+        tonic_str = parts[0]
+        # 'c', 'major' -> 'major' | 'c', 'harmonic', 'minor' -> 'harmonic minor'
+        scale_type = " ".join(parts[1:]) if len(parts) > 1 else "major" # 1単語の場合はmajorとみなす
+
         scale_map = {
-            "major": scale.MajorScale, "minor": scale.MinorScale,
-            "natural minor": scale.MinorScale, "harmonic minor": scale.HarmonicMinorScale,
-            "melodic minor": scale.MelodicMinorScale
+            "major": scale.MajorScale, "ionian": scale.MajorScale,
+            "minor": scale.MinorScale, "natural minor": scale.MinorScale, "aeolian": scale.MinorScale,
+            "harmonic minor": scale.HarmonicMinorScale,
+            "melodic minor": scale.MelodicMinorScale,
+            "dorian": scale.DorianScale, "phrygian": scale.PhrygianScale,
+            "lydian": scale.LydianScale, "mixolydian": scale.MixolydianScale,
+            "locrian": scale.LocrianScale,
+            "whole tone": scale.WholeToneScale, "chromatic": scale.ChromaticScale,
+            # lambda式でカスタムスケールを定義するのは素晴らしいアプローチです！
+            "pentatonic": lambda p: scale.ConcreteScale(pitches=[p, p.transpose('M2'), p.transpose('M3'), p.transpose('P5'), p.transpose('M6')]),
+            "minor pentatonic": lambda p: scale.ConcreteScale(pitches=[p, p.transpose('m3'), p.transpose('P4'), p.transpose('P5'), p.transpose('m7')]),
+            "blues": lambda p: scale.ConcreteScale(pitches=[p, p.transpose('m3'), p.transpose('P4'), p.transpose('d5'), p.transpose('P5'), p.transpose('m7')])
         }
+
         if scale_type not in scale_map:
             raise HTTPException(status_code=400, detail=f"サポートされていないスケールタイプです: '{scale_type}'")
-        
-        scale_class = scale_map[scale_type]
-        s = scale_class(tonic)
-        
-        scale_pitches_obj = s.pitches[:-1]
+
+        scale_creator = scale_map[scale_type]
+        # ConcreteScaleはtonicを引数に取らないため、分岐を追加
+        if isinstance(scale_creator, type): # MajorScaleなどのクラスの場合
+             s = scale_creator(tonic_str)
+        else: # lambda式の場合
+             from music21 import pitch
+             s = scale_creator(pitch.Pitch(tonic_str))
+
+        scale_pitches_obj = s.pitches
+        # オクターブ違いの最後の音を削除（7音以上のスケールの場合）
+        if len(scale_pitches_obj) > 7:
+            scale_pitches_obj = scale_pitches_obj[:-1]
+            
         scale_pitches_for_display = [p.name.replace('-', 'b') for p in scale_pitches_obj]
         
         diatonic_harmony_data = []
-        roman_numerals_upper = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
-        functions = ["Tonic", "Subdominant", "Tonic", "Subdominant", "Dominant", "Tonic", "Dominant"]
-        
-        for i in range(7):
-            root = scale_pitches_obj[i]
-            third = scale_pitches_obj[(i + 2) % 7]
-            fifth = scale_pitches_obj[(i + 4) % 7]
-            seventh = scale_pitches_obj[(i + 6) % 7]
+        # ダイアトニックコードは7音スケールの場合のみ生成
+        if len(scale_pitches_obj) == 7:
+            functions = ["Tonic", "Supertonic", "Mediant", "Subdominant", "Dominant", "Submediant", "Leading Tone"]
+            roman_numerals_upper = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
             
-            triad = chord.Chord([root, third, fifth])
-            seventh_chord = chord.Chord([root, third, fifth, seventh])
-
-            quality = triad.quality
-            base_roman = roman_numerals_upper[i]
-            roman_figure = base_roman
-            if quality == 'minor':
-                roman_figure = base_roman.lower()
-            elif quality == 'diminished':
-                roman_figure = base_roman.lower() + '°'
-            
-            root_display_name = triad.root().name.replace('-', 'b')
-            triad_suffix = ''
-            if triad.quality == 'minor':
-                triad_suffix = 'm'
-            elif triad.quality == 'diminished':
-                triad_suffix = 'dim'
-            triad_name = f"{root_display_name}{triad_suffix}"
-
-            # --- ↓↓↓ セブンスコード名の生成ロジックを、最も確実な方法に修正しました ↓↓↓ ---
-            
-            # 4和音のクオリティを取得
-            seventh_quality = seventh_chord.quality
-            
-            # クオリティの文字列に応じてサフィックスを決定する
-            seventh_suffix = '7' # デフォルト (ドミナントセブンス)
-            if seventh_quality == 'major-seventh':
-                seventh_suffix = 'maj7'
-            elif seventh_quality == 'minor-seventh':
-                seventh_suffix = 'm7'
-            elif seventh_quality == 'diminished-seventh':
-                seventh_suffix = 'dim7'
-            elif seventh_quality == 'half-diminished':
-                seventh_suffix = 'm7(b5)'
+            for i in range(7):
+                root = scale_pitches_obj[i]
+                third = scale_pitches_obj[(i + 2) % 7]
+                fifth = scale_pitches_obj[(i + 4) % 7]
+                seventh = scale_pitches_obj[(i + 6) % 7]
                 
-            seventh_chord_name = f"{root_display_name}{seventh_suffix}"
+                triad = chord.Chord([root, third, fifth])
+                seventh_chord = chord.Chord([root, third, fifth, seventh])
+                
+                # Roman Numeral Figure
+                quality = triad.quality
+                base_roman = roman_numerals_upper[i]
+                roman_figure = base_roman
+                if quality == 'minor':
+                    roman_figure = base_roman.lower()
+                elif quality == 'diminished':
+                    roman_figure = base_roman.lower() + '°'
+                elif quality == 'augmented':
+                    roman_figure = base_roman.upper() + '+'
 
-            diatonic_harmony_data.append({
-                "degree": roman_figure,
-                "function": functions[i],
-                "chords": [triad_name, seventh_chord_name]
-            })
+                # Triad Name
+                root_display_name = triad.root().name.replace('-', 'b')
+                triad_suffix = ''
+                if quality == 'minor':
+                    triad_suffix = 'm'
+                elif quality == 'diminished':
+                    triad_suffix = 'dim'
+                elif quality == 'augmented':
+                    triad_suffix = 'aug'
+                triad_name = f"{root_display_name}{triad_suffix}"
+                
+                # Seventh Chord Name
+                seventh_quality = seventh_chord.quality
+                seventh_suffix = '7'
+                if seventh_quality == 'major-seventh':
+                    seventh_suffix = 'maj7'
+                elif seventh_quality == 'minor-seventh':
+                    seventh_suffix = 'm7'
+                elif seventh_quality in ['half-diminished-seventh', 'half-diminished']:
+                    seventh_suffix = 'm7(b5)'
+                elif seventh_quality == 'diminished-seventh':
+                    seventh_suffix = 'dim7'
+                seventh_chord_name = f"{root_display_name}{seventh_suffix}"
+                
+                diatonic_harmony_data.append({
+                    "degree": roman_figure,
+                    "function": functions[i],
+                    "chords": [triad_name, seventh_chord_name]
+                })
 
         return {
             "input_scale": decoded_name,
@@ -123,7 +147,8 @@ def analyze_scale(name: str):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないスケール名です。")
+        raise HTTPException(status_code=400, detail=f"'{unquote(name)}' は無効な、または解釈できないスケール名です。エラー: {e}")
+
 
 @app.get("/ai/transpose")
 def transpose_progression(
