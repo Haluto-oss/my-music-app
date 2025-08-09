@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import './ScaleAnalyzerPage.css';
 
-// APIから返ってくるダイアトニックコードのデータの「型」を定義
 interface DiatonicHarmony {
   degree: string;
   function: string;
@@ -8,86 +8,93 @@ interface DiatonicHarmony {
 }
 
 export function ScaleAnalyzerPage() {
-  // スケール解析機能で使う状態（変数）をすべてここで管理
   const [scaleInput, setScaleInput] = useState('C major');
   const [scalePitchesResult, setScalePitchesResult] = useState<string[]>([]);
   const [diatonicHarmonyResult, setDiatonicHarmonyResult] = useState<DiatonicHarmony[]>([]);
   const [scaleError, setScaleError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleAnalyzeScale = async () => {
-    // ボタンが押されたら、まず以前の結果をリセットする
+    if (isLoading) return;
+    setIsLoading(true);
     setScaleError('');
     setScalePitchesResult([]);
     setDiatonicHarmonyResult([]);
-
     if (!scaleInput) {
       setScaleError('スケール名を入力してください。');
+      setIsLoading(false);
       return;
     }
     try {
       const encodedScaleName = encodeURIComponent(scaleInput);
-      const response = await fetch(`http://localhost:8080/api/scales?name=${encodedScaleName}`);
+      const response = await fetch(`http://127.0.0.1:8000/ai/analyze/scale?name=${encodedScaleName}`);
       const data = await response.json();
-
       if (!response.ok) {
-        // エラー応答の場合
         setScaleError(`エラー: ${data.detail || '不明なエラー'}`);
       } else {
-        // 成功した場合
         setScalePitchesResult(data.scale_pitches);
         setDiatonicHarmonyResult(data.diatonic_harmony);
       }
     } catch (error) {
       setScaleError('サーバーの呼び出しに失敗しました。');
       console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      handleAnalyzeScale();
     }
   };
 
   return (
-    <div className="card">
+    <div className="analyzer-card">
       <h2>スケール・ダイアトニックコード解析</h2>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div className="input-area">
         <input
           type="text"
           value={scaleInput}
           onChange={(e) => setScaleInput(e.target.value)}
-          placeholder="例: C major, A harmonic minor"
+          onKeyDown={handleKeyDown}
+          placeholder="例: D dorian, F harmonic minor"
+          disabled={isLoading}
         />
-        <button onClick={handleAnalyzeScale}>
-          解析する
+        <button onClick={handleAnalyzeScale} disabled={isLoading}>
+          {isLoading ? '解析中...' : '解析する'}
         </button>
       </div>
 
-      {/* --- 結果表示エリア --- */}
-      {/* エラーがある場合のみ表示 */}
-      {scaleError && <p style={{ color: 'red' }}>{scaleError}</p>}
-      
-      {/* スケール構成音の結果がある場合のみ表示 */}
-      {(scalePitchesResult && scalePitchesResult.length > 0) && (
-        <p><b>スケール構成音: {scalePitchesResult.join(', ')}</b></p>
-      )}
-      
-      {/* ダイアトニックコードの結果がある場合のみ表示 */}
-      {(diatonicHarmonyResult && diatonicHarmonyResult.length > 0) && (
-        <table>
-          <thead>
-            <tr>
-              <th>機能</th>
-              <th>ディグリー</th>
-              <th>コード</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="results-area">
+        {scaleError && <p className="error-message">{scaleError}</p>}
+        
+        {scalePitchesResult.length > 0 && (
+          <p className="scale-pitches">
+            <b>スケール構成音: {scalePitchesResult.join(', ')}</b>
+          </p>
+        )}
+        
+        {/* 結果が1件以上ある場合のみ表示 */}
+        {diatonicHarmonyResult.length > 0 && (
+          <div className="results-list">
+            <div className="results-header">
+              <div className="results-col function">機能</div>
+              <div className="results-col degree">ディグリー</div>
+              <div className="results-col chord">コード</div>
+            </div>
             {diatonicHarmonyResult.map((item) => (
-              <tr key={item.degree}>
-                <td>{item.function}</td>
-                <td>{item.degree}</td>
-                <td>{item.chords.join(' / ')}</td>
-              </tr>
+              <div className="results-row" key={item.degree}>
+                <div className="results-col function">{item.function}</div>
+                <div className="results-col degree">
+                  <strong>{item.degree}</strong>
+                </div>
+                <div className="results-col chord">{item.chords.join(' / ')}</div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
